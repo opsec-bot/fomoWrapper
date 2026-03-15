@@ -25,13 +25,35 @@ const { getLeaderboard24h } = require("./endpoints/leaderboard");
 const { getStatus } = require("./endpoints/status");
 const { sendTransaction } = require("./endpoints/transactions");
 
+/**
+ * Normalize token input from raw JWT, Bearer value, or Authorization header string
+ * @param {string|undefined|null} value
+ * @returns {string|undefined}
+ */
+function normalizeAccessToken(value) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const withoutHeader = trimmed.replace(/^authorization\s*:\s*/i, "");
+  const withoutBearer = withoutHeader.replace(/^bearer\s+/i, "");
+
+  return withoutBearer.trim();
+}
+
 class FomoClient {
   /**
    * Create a Fomo API client
    * @param {{ token?: string, baseUrl?: string, timeoutMs?: number }} options
    */
   constructor({ token, baseUrl = BASE_URL, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
-    this.token = token;
+    this.token = normalizeAccessToken(token);
     this.baseUrl = baseUrl;
     this.timeoutMs = timeoutMs;
   }
@@ -41,7 +63,7 @@ class FomoClient {
    * @param {string} token
    */
   setToken(token) {
-    this.token = token;
+    this.token = normalizeAccessToken(token);
   }
 
   /**
