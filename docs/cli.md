@@ -35,6 +35,7 @@ On Windows `cmd.exe`, write the JSON with escaped double quotes: `"{\"limit\":20
 | `status` | none | `getAuthInfo()`. Local only, no network call. |
 | `ping` | none | `status()`. Needs no token. |
 | `config` | none | `config()` |
+| `me` | none | `users.me()` |
 | `watchlist` | none | `users.watchlist()` |
 | **Tokens** | | |
 | `trending` | none | `tokens.trending()` |

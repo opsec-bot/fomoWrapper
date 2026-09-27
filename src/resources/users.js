@@ -9,6 +9,11 @@ class UsersResource {
     this.client = client;
   }
 
+  /** The signed-in user's own profile. */
+  me() {
+    return this.client.request("/v2/users/current");
+  }
+
   /**
    * Profile by user id.
    * @param {string} userId
@@ -87,7 +92,7 @@ class UsersResource {
   }
 
   /**
-   * Who referred a user.
+   * Referral stats and code. The API only allows this for your own user id (others get 401).
    * @param {string} userId
    */
   referralDetails(userId) {

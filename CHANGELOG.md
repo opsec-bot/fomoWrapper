@@ -10,6 +10,7 @@ Synced with what fomo.family sent on 2026-09-27.
 - Feed: `token`, `tokenTheses`, `tradingActivity`.
 - Users: `tokensSnapshotAt`, `swaps`, `spotlight`, `leaderboard`, `transfersWith`, `watchlist`.
 - Leaderboard: `clans`.
+- `users.me()` / `fomo me` (`GET /v2/users/current`).
 - `config()`, plus an optional `tokenAddress` filter on `trades.list`.
 - `request()` accepts absolute URLs and `auth: false`.
 - Matching CLI commands for all of the above.
@@ -20,6 +21,11 @@ Synced with what fomo.family sent on 2026-09-27.
 - Array query params are sent as `feedTypes=a&feedTypes=b` instead of `feedTypes[]=a`, matching the web app.
 - `leaderboard.last24h()` no longer sends `limit=100` by default. The web app omits it.
 - Request headers now include `app-language: en`, and `x-supported-chains` includes chain `5042`.
+
+### Fixed
+
+- Token refresh failed with Privy 401 "Missing access token". The refresh request now sends the current access token (expired is fine) with the refresh token.
+- The client no longer refreshes on 401 permission errors. It only refreshes when the 401 is about the token itself, which avoids needlessly rotating (spending) the refresh token.
 
 ## 0.2.0
 

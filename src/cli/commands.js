@@ -30,6 +30,11 @@ const COMMANDS = {
     summary: "App configuration for your account.",
     run: (client) => client.config(),
   },
+  me: {
+    group: "Account",
+    summary: "Your own profile.",
+    run: (client) => client.users.me(),
+  },
   watchlist: {
     group: "Account",
     summary: "Your watchlist.",
@@ -231,7 +236,7 @@ const COMMANDS = {
   },
   userReferralDetails: {
     group: "Users",
-    summary: "Who referred a user.",
+    summary: "Referral stats. Only works for your own user id.",
     args: ["userId"],
     example: "<userId>",
     run: (client, { userId }) => client.users.referralDetails(String(userId)),

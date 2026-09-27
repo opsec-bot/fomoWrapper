@@ -52,6 +52,19 @@ function buildQueryString(params) {
   return query ? `?${query}` : "";
 }
 
+/**
+ * Whether an error is the API rejecting the access token itself (vs. a permission check).
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isTokenRejection(error) {
+  if (!(error instanceof FomoApiError) || error.status !== 401) {
+    return false;
+  }
+  const message = typeof error.body === "object" && error.body ? error.body.message || error.body.error : error.body;
+  return /jwt|token/i.test(String(message || ""));
+}
+
 class FomoClient {
   /**
    * @param {FomoClientOptions} [options]
@@ -165,7 +178,7 @@ class FomoClient {
 
     this._refreshing ||= (async () => {
       try {
-        const tokens = await auth.refreshTokens(this.refreshToken);
+        const tokens = await auth.refreshTokens(this.refreshToken, this.accessToken);
         this.accessToken = tokens.access_token;
         this.refreshToken = tokens.refresh_token;
 
@@ -200,8 +213,10 @@ class FomoClient {
     try {
       return await this._send(path, options);
     } catch (error) {
-      // A token can be revoked before its exp; retry once with a fresh one.
-      if (error instanceof FomoApiError && error.status === 401 && this.refreshToken) {
+      // A token can be revoked before its exp; retry once with a fresh one. Only for token errors:
+      // the API also answers 401 for permission checks ("you can only view your own ..."), and
+      // refreshing on those would needlessly rotate the refresh token.
+      if (isTokenRejection(error) && this.refreshToken) {
         await this.refresh();
         return this._send(path, options);
       }

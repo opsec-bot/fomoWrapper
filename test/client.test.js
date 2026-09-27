@@ -73,6 +73,7 @@ test("expired token is refreshed once, persisted, and reported", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, init) => {
     refreshCalls += 1;
     assert.deepEqual(JSON.parse(init.body), { refresh_token: "old-refresh" });
+    assert.match(init.headers.Authorization, /^Bearer ey/);
     return new Response(JSON.stringify({ privy_access_token: fresh, refresh_token: "new-refresh" }));
   });
 
@@ -131,4 +132,29 @@ test("leaderboard.last24h omits limit unless given", async () => {
 
   assert.equal(calls[0].url, "https://prod-api.fomo.family/v2/leaderboard/24h");
   assert.equal(calls[1].url, "https://prod-api.fomo.family/v2/leaderboard/24h?limit=10");
+});
+
+test("401 permission errors do not trigger a refresh", async (t) => {
+  const refresh = t.mock.method(globalThis, "fetch", async () => new Response("{}"));
+  const { client } = mockClient(
+    [{ status: 401, body: { message: "Not authorized: you can only view your own referrer details" } }],
+    { refreshToken: "r" }
+  );
+
+  await assert.rejects(client.users.referralDetails("someone-else"), (error) => error.status === 401);
+  assert.equal(refresh.mock.callCount(), 0);
+});
+
+test("401 token errors refresh once and retry", async (t) => {
+  const fresh = makeJwt({ exp: now() + 3600 });
+  t.mock.method(globalThis, "fetch", async () =>
+    new Response(JSON.stringify({ privy_access_token: fresh, refresh_token: "r2" }))
+  );
+  const { client, calls } = mockClient(
+    [{ status: 401, body: { message: "Unexpected error in JWT authentication middleware" } }, { body: { ok: 1 } }],
+    { refreshToken: "r" }
+  );
+
+  assert.deepEqual(await client.users.watchlist(), { ok: 1 });
+  assert.equal(calls[1].headers.authorization, `Bearer ${fresh}`);
 });

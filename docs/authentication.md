@@ -62,7 +62,7 @@ Before each request, the client:
 2. refreshes if there is a refresh token and the access token is missing or expires within 60 seconds,
 3. throws `FomoAuthError` if the access token is expired and there's no way to refresh it.
 
-If the API answers `401` anyway (a revoked token, for example), the client refreshes once and retries the request.
+If the API rejects the token anyway with a `401` (a revoked token, for example), the client refreshes once and retries the request. It does not refresh on `401` permission errors such as "you can only view your own referrer details", because each refresh uses up a refresh token.
 
 Concurrent requests share a single refresh call.
 

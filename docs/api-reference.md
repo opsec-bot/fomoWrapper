@@ -74,6 +74,7 @@ The web app now loads its charts from a separate service (`mobula-api.fomo.famil
 
 | Method | Endpoint |
 |---|---|
+| `users.me()` | `GET /v2/users/current` |
 | `users.get(userId)` | `GET /v2/users/{userId}` |
 | `users.byHandle(handle)` | `GET /v2/users/userHandle/{handle}` |
 | `users.addresses(handle)` | same as `byHandle`, reshaped |
@@ -90,6 +91,8 @@ The web app now loads its charts from a separate service (`mobula-api.fomo.famil
 | `users.transfersWith(userId)` | `GET /v2/transfers/with/{userId}` |
 | `users.watchlist()` | `GET /watchlist` |
 | `users.following()` | `GET /v2/users/current/followingIds` |
+
+`users.referralDetails` only works for your own id. For anyone else, the API returns 401 "you can only view your own referrer details". Get your id from `users.me()`.
 
 Handles are matched exactly, and a leading `@` is stripped. An unknown handle throws `FomoApiError` with status `404`. Use `users.search` to find a handle from part of a name.
 

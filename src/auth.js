@@ -70,10 +70,12 @@ function isExpired(accessToken, marginSeconds = 0) {
 /**
  * Exchange a Privy refresh token for a new token pair.
  * Privy rotates refresh tokens: the one passed in is spent, persist the returned one.
+ * Privy also requires the current access token (expired is fine) alongside the refresh token.
  * @param {string} refreshToken
+ * @param {string} [accessToken]
  * @returns {Promise<TokenPair>}
  */
-async function refreshTokens(refreshToken) {
+async function refreshTokens(refreshToken, accessToken) {
   if (!refreshToken) {
     throw new FomoAuthError("refreshToken is required");
   }
@@ -82,7 +84,9 @@ async function refreshTokens(refreshToken) {
   try {
     response = await fetch(`${PRIVY_BASE_URL}${PRIVY_SESSION_PATH}`, {
       method: "POST",
-      headers: PRIVY_HEADERS,
+      headers: accessToken
+        ? { ...PRIVY_HEADERS, Authorization: `Bearer ${normalizeAccessToken(accessToken)}` }
+        : PRIVY_HEADERS,
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
   } catch (error) {
@@ -92,16 +96,17 @@ async function refreshTokens(refreshToken) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new FomoAuthError(`Token refresh failed with ${response.status}: ${data?.error || "unknown error"}`);
+    const hint = response.status === 401 && !accessToken ? " (Privy needs the access token too; pass it as the second argument)" : "";
+    throw new FomoAuthError(`Token refresh failed with ${response.status}: ${data?.error || "unknown error"}${hint}`);
   }
 
-  const accessToken = data?.privy_access_token || data?.token;
+  const newAccessToken = data?.privy_access_token || data?.token;
 
-  if (!accessToken || !data?.refresh_token) {
+  if (!newAccessToken || !data?.refresh_token) {
     throw new FomoAuthError("Token refresh response did not include a new token pair");
   }
 
-  return { access_token: accessToken, refresh_token: data.refresh_token };
+  return { access_token: newAccessToken, refresh_token: data.refresh_token };
 }
 
 /**
