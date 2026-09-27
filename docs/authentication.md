@@ -4,10 +4,9 @@ Fomo signs users in with [Privy](https://privy.io). Every API request needs a Pr
 
 ## Getting your tokens
 
-1. Sign in at [fomo.family](https://fomo.family) in a desktop browser.
-2. Open DevTools (F12) and go to **Network**.
-3. Click any request to `prod-api.fomo.family` and copy the `authorization` request header. That's your access token. The client accepts the raw JWT, `Bearer <jwt>`, or the whole `authorization: Bearer <jwt>` line.
-4. For a refresh token, go to **Application → Local Storage → https://fomo.family** and copy the value of `privy:refresh_token`, without the surrounding quotes.
+Both tokens live in fomo.family's localStorage: `privy:token` is the access token and `privy:refresh_token` is the refresh token. The README walks through [copying them with one console command](../README.md#getting-your-tokens).
+
+Alternatively, you can copy the access token from any `prod-api.fomo.family` request in the DevTools **Network** tab, using its `authorization` header. The client accepts the raw JWT, `Bearer <jwt>`, or the whole `authorization: Bearer <jwt>` line.
 
 Both tokens give full access to your account. Keep them out of git. `.env` and `tokens.json` are already in `.gitignore`.
 

@@ -17,10 +17,56 @@ Requires Node.js 20 or newer.
 ```bash
 # from a clone of this repo
 npm install
-cp .env.example .env     # then paste your token in
+cp .env.example .env     # then paste your tokens in (next section)
 ```
 
 To get the `fomo` command on your PATH, run `npm link`. Otherwise use `npm run fomo -- <command>` or `node bin/fomo.js <command>`.
+
+## Getting your tokens
+
+Fomo signs you in through [Privy](https://privy.io), which stores your session in the browser's localStorage:
+
+| localStorage key | What it is | Goes in |
+|---|---|---|
+| `privy:token` | Access token, a JWT that expires quickly | `FOMO_ACCESS_TOKEN` |
+| `privy:refresh_token` | Refresh token, used to get new access tokens | `FOMO_REFRESH_TOKEN` |
+
+### Quickest way: the DevTools console
+
+1. Sign in at [fomo.family](https://fomo.family) in Chrome, Edge, or Firefox on a desktop.
+2. Press **F12** (or **Ctrl+Shift+I**, **Cmd+Option+I** on macOS) and open the **Console** tab.
+3. Paste this and press Enter:
+
+   ```js
+   copy(`FOMO_ACCESS_TOKEN=${JSON.parse(localStorage["privy:token"])}
+   FOMO_REFRESH_TOKEN=${JSON.parse(localStorage["privy:refresh_token"])}
+   FOMO_TOKEN_FILE=tokens.json`)
+   ```
+
+4. Your clipboard now holds three lines ready for `.env`. Paste them in, replacing the empty entries.
+
+If the browser refuses to paste into the console, type `allow pasting` first and try again.
+
+### Manual way: the Application tab
+
+1. In DevTools, open **Application** (Chrome/Edge) or **Storage** (Firefox).
+2. Go to **Local Storage → https://fomo.family**.
+3. Copy the values of `privy:token` and `privy:refresh_token` into `.env`. **Drop the surrounding double quotes.** They are stored as JSON strings.
+
+### Check it worked
+
+```bash
+fomo status      # "expired": false and "canRefresh": true means you're set
+fomo trending
+```
+
+### Keep them safe
+
+- These tokens give **full access to your Fomo account**, including trading. Never commit them, paste them into chats, or share screenshots of them. `.env` and `tokens.json` are already gitignored.
+- Keep `FOMO_TOKEN_FILE=tokens.json` set. Privy replaces the refresh token on every refresh, and the old one stops working. The token file stores the new pair so the next run can still refresh.
+- If you log out of fomo.family, the tokens may be invalidated. Repeat the steps above to get fresh ones.
+
+See [docs/authentication.md](docs/authentication.md) for how refresh works in detail.
 
 ## Quick start
 
