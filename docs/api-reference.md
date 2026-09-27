@@ -5,7 +5,7 @@ Every method returns a promise that resolves to the parsed JSON response. Respon
 Conventions:
 
 - **Token id:** `<address>:<networkId>`, e.g. `0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf:8453`
-- **Network ids:** `1` Ethereum, `56` BNB Chain, `8453` Base, `1399811149` Solana, plus `143` and `4663`, which the web app also requests
+- **Network ids:** `1` Ethereum, `56` BNB Chain, `8453` Base, `1399811149` Solana, plus `143`, `4663`, and `5042`, which the web app also requests
 - **Timestamps:** unix seconds
 
 ## Contents
@@ -51,12 +51,20 @@ const fomo = new FomoClient(options);
 | `tokens.filter(tokenIds)` | `POST /proxy/filterTokens` |
 | `tokens.search(phrase)` | `POST /proxy/filterTokensSearch` |
 | `tokens.warnings({ address, networkId })` | `POST /proxy/tokenWarnings` |
+| `tokens.topHolders(tokens)` | `GET /hodlers/top` |
+| `tokens.friendHolders(tokens, limit = 50)` | `POST /hodlers/friends` |
+| `tokens.allowList()` | `GET /tokenAllowList/detailed` |
+| `tokens.transferable()` | `GET /transfers/v2/supportedTokens` |
 
 **`bars`** returns OHLCV candles. `symbol` is a token id and `resolution` is a candle size in minutes (`"1"`, `"5"`, `"60"`) or `"1D"`.
 
 ```js
 await fomo.tokens.bars({ symbol: "0xacfe...21bf:8453", from: 1773547200, to: 1773550800, resolution: "1" });
 ```
+
+The web app now loads its charts from a separate service (`mobula-api.fomo.family`) rather than `/proxy/getBars`. `bars` still points at the old endpoint, which may be retired.
+
+**`topHolders`** and **`friendHolders`** take `[{ address, networkId }]`, so you can ask about several tokens in one call.
 
 **`prices`** takes `[{ address, networkId, timestamp? }]`. Leave out `timestamp` for the current price.
 
@@ -75,6 +83,12 @@ await fomo.tokens.bars({ symbol: "0xacfe...21bf:8453", from: 1773547200, to: 177
 | `users.activeTrade({ userId, tokenAddress, networkId })` | `GET /v2/users/{userId}/activeTrade` |
 | `users.referralDetails(userId)` | `GET /v2/users/{userId}/referrerDetails` |
 | `users.tokensSnapshot({ userId, snapshotId })` | `GET /v2/userTokens/aggregatedSnapshotById` |
+| `users.tokensSnapshotAt({ userId, timestamp? })` | `GET /v2/userTokens/aggregatedSnapshot` |
+| `users.swaps(userId)` | `GET /v2/users/{userId}/swaps` |
+| `users.spotlight(userId)` | `GET /v2/users/{userId}/spotlight` |
+| `users.leaderboard(userId)` | `GET /v2/users/{userId}/leaderboard` |
+| `users.transfersWith(userId)` | `GET /v2/transfers/with/{userId}` |
+| `users.watchlist()` | `GET /watchlist` |
 | `users.following()` | `GET /v2/users/current/followingIds` |
 
 Handles are matched exactly, and a leading `@` is stripped. An unknown handle throws `FomoApiError` with status `404`. Use `users.search` to find a handle from part of a name.
@@ -100,6 +114,9 @@ await fomo.users.addresses("@somehandle");
 |---|---|
 | `feed.list({ limit?, feedTypes? })` | `GET /feed` |
 | `feed.friends({ limit?, feedTypes? })` | `GET /feed/friends` |
+| `feed.token({ tokenAddress, networkId, excludeThesis?, threshold? })` | `GET /feed/token` |
+| `feed.tokenTheses({ tokenAddress, networkId, threshold?, lastId? })` | `GET /feed/token/thesis` |
+| `feed.tradingActivity({ limit?, threshold? })` | `GET /feed/tradingActivity` |
 
 `limit` defaults to 50. `feedTypes` defaults to every type the web app requests. The full list is in `constants.DEFAULT_FEED_TYPES`:
 
@@ -113,24 +130,26 @@ await fomo.feed.list({ limit: 20, feedTypes: ["large_buy", "new_token_listing"] 
 
 | Method | Endpoint |
 |---|---|
-| `trades.list({ userId, orderBy })` | `GET /trades` |
+| `trades.list({ userId, orderBy, tokenAddress? })` | `GET /trades` |
 | `trades.comments(tradeId)` | `GET /trades/{tradeId}/comments` |
 | `trades.topCombined({ limit?, window? })` | `GET /trades/top-combined` |
 
-`topCombined` defaults to `limit: 5, window: "all"`.
+`orderBy` is a field name, for example `closedAt`. `topCombined` defaults to `limit: 5, window: "all"`.
 
 ## leaderboard
 
 | Method | Endpoint |
 |---|---|
-| `leaderboard.last24h(limit = 100)` | `GET /v2/leaderboard/24h` |
+| `leaderboard.last24h(limit?)` | `GET /v2/leaderboard/24h` |
+| `leaderboard.clans({ window = "24h", limit = 50 })` | `GET /v2/clans/leaderboard` |
 
 ## Other methods
 
 | Method | |
 |---|---|
-| `status()` | `GET /prod`, a reachability check |
-| `request(path, { method, params, body, headers })` | Raw request for endpoints the wrapper doesn't cover. Handles auth, refresh, and errors. |
+| `status()` | `GET https://status.fomo.family/prod`: Fomo's service status banner. Needs no token. |
+| `config()` | `GET /config`: app configuration for your account |
+| `request(path, { method, params, body, headers, auth })` | Raw request for endpoints the wrapper doesn't cover. Handles auth, refresh, and errors. `path` can be an absolute URL. `auth: false` sends no token. |
 | `sendTransaction(payload)` | `POST /` with a signed transaction payload. **This can move funds.** Only send payloads you built and understand. |
 | `getAuthInfo()`, `ensureToken()`, `refresh()`, `setToken(token)` | See [Authentication](authentication.md). |
 
@@ -139,7 +158,7 @@ await fomo.feed.list({ limit: 20, feedTypes: ["large_buy", "new_token_listing"] 
 await fomo.request("/v2/some/new/endpoint", { params: { limit: 10 } });
 ```
 
-In `params`, array values are sent as `key[]=a&key[]=b`, and `null`/`undefined` values are dropped.
+In `params`, array values are sent as `key=a&key=b` (as the web app does), and `null`/`undefined` values are dropped.
 
 ## Errors
 

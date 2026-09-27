@@ -1,4 +1,5 @@
 const BASE_URL = "https://prod-api.fomo.family";
+const STATUS_URL = "https://status.fomo.family/prod";
 const PRIVY_BASE_URL = "https://auth.privy.io";
 const PRIVY_SESSION_PATH = "/api/v1/sessions";
 const REQUEST_TIMEOUT_MS = 30000;
@@ -28,6 +29,7 @@ const DEFAULT_FEED_TYPES = [
 // Node HTTP clients; requests are made through impit's Chrome impersonation.
 const BROWSER_HEADERS = {
   accept: "*/*",
+  "app-language": "en",
   "accept-language": "en-US,en;q=0.9",
   "content-type": "application/json",
   priority: "u=1, i",
@@ -37,7 +39,7 @@ const BROWSER_HEADERS = {
   "sec-fetch-dest": "empty",
   "sec-fetch-mode": "cors",
   "sec-fetch-site": "same-site",
-  "x-supported-chains": "1,56,143,4663,8453,1399811149",
+  "x-supported-chains": "1,56,143,4663,5042,8453,1399811149",
   Referer: "https://fomo.family/",
 };
 
@@ -56,6 +58,7 @@ const PRIVY_HEADERS = {
 
 module.exports = {
   BASE_URL,
+  STATUS_URL,
   PRIVY_BASE_URL,
   PRIVY_SESSION_PATH,
   REQUEST_TIMEOUT_MS,

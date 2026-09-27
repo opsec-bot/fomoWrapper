@@ -22,8 +22,18 @@ const COMMANDS = {
   },
   ping: {
     group: "Account",
-    summary: "Check the API is reachable.",
+    summary: "Fomo's service status banner. No auth needed.",
     run: (client) => client.status(),
+  },
+  config: {
+    group: "Account",
+    summary: "App configuration for your account.",
+    run: (client) => client.config(),
+  },
+  watchlist: {
+    group: "Account",
+    summary: "Your watchlist.",
+    run: (client) => client.users.watchlist(),
   },
 
   // Tokens
@@ -82,6 +92,32 @@ const COMMANDS = {
     example: "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf 8453",
     run: (client, args) => client.tokens.warnings(args),
   },
+  topHolders: {
+    group: "Tokens",
+    summary: "Biggest Fomo holders of a token.",
+    args: ["address", "networkId"],
+    example: "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf 8453",
+    run: (client, { address, networkId, tokens }) =>
+      client.tokens.topHolders(tokens || [{ address: String(address), networkId }]),
+  },
+  friendHolders: {
+    group: "Tokens",
+    summary: "Accounts you follow that hold a token.",
+    args: ["address", "networkId", "limit"],
+    example: "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf 8453",
+    run: (client, { address, networkId, tokens, limit }) =>
+      client.tokens.friendHolders(tokens || [{ address: String(address), networkId }], limit),
+  },
+  allowList: {
+    group: "Tokens",
+    summary: "Tokens Fomo allows trading, with details.",
+    run: (client) => client.tokens.allowList(),
+  },
+  transferableTokens: {
+    group: "Tokens",
+    summary: "Tokens that can be transferred in and out of Fomo.",
+    run: (client) => client.tokens.transferable(),
+  },
 
   // Feed
   feed: {
@@ -98,13 +134,34 @@ const COMMANDS = {
     example: "20",
     run: (client, args) => client.feed.friends(args),
   },
+  tokenFeed: {
+    group: "Feed",
+    summary: "Activity for one token.",
+    args: ["tokenAddress", "networkId"],
+    example: "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf 8453",
+    run: (client, args) => client.feed.token({ ...args, tokenAddress: String(args.tokenAddress) }),
+  },
+  tokenTheses: {
+    group: "Feed",
+    summary: "Theses (posts) about one token.",
+    args: ["tokenAddress", "networkId", "lastId"],
+    example: "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf 8453",
+    run: (client, args) => client.feed.tokenTheses({ ...args, tokenAddress: String(args.tokenAddress) }),
+  },
+  tradingActivity: {
+    group: "Feed",
+    summary: "Recent trading activity across Fomo.",
+    args: ["limit"],
+    example: "20",
+    run: (client, args) => client.feed.tradingActivity(args),
+  },
 
   // Trades
   trades: {
     group: "Trades",
     summary: "A user's trades.",
-    args: ["userId", "orderBy"],
-    example: "<userId> recent",
+    args: ["userId", "orderBy", "tokenAddress"],
+    example: "<userId> closedAt",
     run: (client, args) => client.trades.list(args),
   },
   tradeComments: {
@@ -186,6 +243,41 @@ const COMMANDS = {
     example: "<userId> <snapshotId>",
     run: (client, args) => client.users.tokensSnapshot(args),
   },
+  userTokensSnapshotAt: {
+    group: "Users",
+    summary: "A user's token holdings at a point in time (ISO timestamp, default now).",
+    args: ["userId", "timestamp"],
+    example: "<userId> 2026-09-26T00:00:00Z",
+    run: (client, args) => client.users.tokensSnapshotAt(args),
+  },
+  userSwaps: {
+    group: "Users",
+    summary: "A user's swap history.",
+    args: ["userId"],
+    example: "<userId>",
+    run: (client, { userId }) => client.users.swaps(String(userId)),
+  },
+  userSpotlight: {
+    group: "Users",
+    summary: "A user's profile spotlight.",
+    args: ["userId"],
+    example: "<userId>",
+    run: (client, { userId }) => client.users.spotlight(String(userId)),
+  },
+  userLeaderboard: {
+    group: "Users",
+    summary: "A user's leaderboard entry.",
+    args: ["userId"],
+    example: "<userId>",
+    run: (client, { userId }) => client.users.leaderboard(String(userId)),
+  },
+  transfersWith: {
+    group: "Users",
+    summary: "Transfers between you and another user.",
+    args: ["userId"],
+    example: "<userId>",
+    run: (client, { userId }) => client.users.transfersWith(String(userId)),
+  },
   following: {
     group: "Users",
     summary: "Ids of accounts you follow.",
@@ -199,6 +291,13 @@ const COMMANDS = {
     args: ["limit"],
     example: "25",
     run: (client, { limit }) => client.leaderboard.last24h(limit),
+  },
+  clans: {
+    group: "Leaderboard",
+    summary: "Top clans.",
+    args: ["window", "limit"],
+    example: "24h 25",
+    run: (client, args) => client.leaderboard.clans(args),
   },
 
   // Advanced

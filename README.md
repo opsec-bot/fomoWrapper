@@ -128,7 +128,7 @@ npm test          # runs test/*.test.js with node:test
 
 Tests use a mock transport and never touch the network.
 
-See [CHANGELOG.md](CHANGELOG.md) for what changed in 0.2.0.
+See [CHANGELOG.md](CHANGELOG.md) for the version history.
 
 ## License
 

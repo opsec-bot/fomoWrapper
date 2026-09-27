@@ -7,8 +7,8 @@ const { FomoClient, FomoApiError, FomoAuthError } = require("../src");
 const { buildQueryString } = require("../src/client");
 const { makeJwt, now, mockClient } = require("./helpers");
 
-test("buildQueryString repeats arrays as key[] and skips nullish values", () => {
-  assert.equal(buildQueryString({ limit: 5, types: ["a", "b"], skip: undefined, none: null }), "?limit=5&types%5B%5D=a&types%5B%5D=b");
+test("buildQueryString repeats array keys and skips nullish values", () => {
+  assert.equal(buildQueryString({ limit: 5, types: ["a", "b"], skip: undefined, none: null }), "?limit=5&types=a&types=b");
   assert.equal(buildQueryString({}), "");
   assert.equal(buildQueryString(undefined), "");
 });
@@ -98,7 +98,7 @@ test("token file values take precedence over constructor values", async () => {
   fs.writeFileSync(tokenFile, JSON.stringify({ access_token: fromFile, refresh_token: "r" }));
 
   const { client, calls } = mockClient([{ body: {} }], { tokenFile, refreshToken: "stale" });
-  await client.status();
+  await client.users.following();
 
   assert.equal(calls[0].headers.authorization, `Bearer ${fromFile}`);
   assert.equal(client.refreshToken, "r");
@@ -114,4 +114,21 @@ test("fromEnv reads FOMO_* variables and the legacy token-file flag", () => {
   assert.equal(client.accessToken, "abc");
   assert.equal(client.refreshToken, "r");
   assert.equal(path.basename(client.tokenFile), "tokens.json");
+});
+
+test("status hits the status host without auth", async () => {
+  const { client, calls } = mockClient([{ body: { success: "true" } }], { accessToken: makeJwt({ exp: now() - 10 }) });
+  await client.status();
+
+  assert.equal(calls[0].url, "https://status.fomo.family/prod");
+  assert.equal(calls[0].headers.authorization, undefined);
+});
+
+test("leaderboard.last24h omits limit unless given", async () => {
+  const { client, calls } = mockClient([{ body: {} }, { body: {} }]);
+  await client.leaderboard.last24h();
+  await client.leaderboard.last24h(10);
+
+  assert.equal(calls[0].url, "https://prod-api.fomo.family/v2/leaderboard/24h");
+  assert.equal(calls[1].url, "https://prod-api.fomo.family/v2/leaderboard/24h?limit=10");
 });

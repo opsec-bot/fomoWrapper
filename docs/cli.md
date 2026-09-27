@@ -33,7 +33,9 @@ On Windows `cmd.exe`, write the JSON with escaped double quotes: `"{\"limit\":20
 |---|---|---|
 | **Account** | | |
 | `status` | none | `getAuthInfo()`. Local only, no network call. |
-| `ping` | none | `status()` |
+| `ping` | none | `status()`. Needs no token. |
+| `config` | none | `config()` |
+| `watchlist` | none | `users.watchlist()` |
 | **Tokens** | | |
 | `trending` | none | `tokens.trending()` |
 | `trendingFriends` | none | `tokens.trendingFriends()` |
@@ -44,11 +46,18 @@ On Windows `cmd.exe`, write the JSON with escaped double quotes: `"{\"limit\":20
 | `filterTokens` | JSON `tokenIds` | `tokens.filter()` |
 | `searchTokens` | `<phrase>` | `tokens.search()` |
 | `tokenWarnings` | `<address> <networkId>` | `tokens.warnings()` |
+| `topHolders` | `<address> <networkId>` | `tokens.topHolders()` |
+| `friendHolders` | `<address> <networkId> [limit]` | `tokens.friendHolders()` |
+| `allowList` | none | `tokens.allowList()` |
+| `transferableTokens` | none | `tokens.transferable()` |
 | **Feed** | | |
 | `feed` | `[limit]` | `feed.list()` |
 | `feedFriends` | `[limit]` | `feed.friends()` |
+| `tokenFeed` | `<tokenAddress> <networkId>` | `feed.token()` |
+| `tokenTheses` | `<tokenAddress> <networkId> [lastId]` | `feed.tokenTheses()` |
+| `tradingActivity` | `[limit]` | `feed.tradingActivity()` |
 | **Trades** | | |
-| `trades` | `<userId> <orderBy>` | `trades.list()` |
+| `trades` | `<userId> <orderBy> [tokenAddress]` | `trades.list()` |
 | `tradeComments` | `<tradeId>` | `trades.comments()` |
 | `tradesTopCombined` | `[limit] [window]` | `trades.topCombined()` |
 | **Users** | | |
@@ -61,9 +70,15 @@ On Windows `cmd.exe`, write the JSON with escaped double quotes: `"{\"limit\":20
 | `userActiveTrade` | `<userId> <tokenAddress> <networkId>` | `users.activeTrade()` |
 | `userReferralDetails` | `<userId>` | `users.referralDetails()` |
 | `userTokensSnapshot` | `<userId> <snapshotId>` | `users.tokensSnapshot()` |
+| `userTokensSnapshotAt` | `<userId> [timestamp]` | `users.tokensSnapshotAt()` |
+| `userSwaps` | `<userId>` | `users.swaps()` |
+| `userSpotlight` | `<userId>` | `users.spotlight()` |
+| `userLeaderboard` | `<userId>` | `users.leaderboard()` |
+| `transfersWith` | `<userId>` | `users.transfersWith()` |
 | `following` | none | `users.following()` |
 | **Leaderboard** | | |
 | `leaderboard` | `[limit]` | `leaderboard.last24h()` |
+| `clans` | `[window] [limit]` | `leaderboard.clans()` |
 | **Advanced** | | |
 | `sendTransaction` | JSON `payload` | `sendTransaction()`. Can move funds. |
 

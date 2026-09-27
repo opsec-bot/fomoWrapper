@@ -1,6 +1,6 @@
 {
   "name": "fomowrapper",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Node.js client and CLI for the Fomo (fomo.family) API",
   "main": "src/index.js",
   "bin": {

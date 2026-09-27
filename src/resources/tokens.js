@@ -82,6 +82,35 @@ class TokensResource {
     requireArgs({ address, networkId });
     return this.client.request("/proxy/tokenWarnings", { method: "POST", body: { address, networkId } });
   }
+
+  /**
+   * Biggest Fomo holders of each token.
+   * @param {{ address: string, networkId: number }[]} tokens
+   */
+  topHolders(tokens) {
+    requireArray("tokens", tokens);
+    return this.client.request("/hodlers/top", { params: { tokens: JSON.stringify(tokens) } });
+  }
+
+  /**
+   * Accounts you follow that hold each token.
+   * @param {{ address: string, networkId: number }[]} tokens
+   * @param {number} [limit=50]
+   */
+  friendHolders(tokens, limit = 50) {
+    requireArray("tokens", tokens);
+    return this.client.request("/hodlers/friends", { method: "POST", body: { tokens, limit } });
+  }
+
+  /** Tokens Fomo allows trading, with details. */
+  allowList() {
+    return this.client.request("/tokenAllowList/detailed");
+  }
+
+  /** Tokens that can be transferred in and out of Fomo. */
+  transferable() {
+    return this.client.request("/transfers/v2/supportedTokens");
+  }
 }
 
 function requireArray(name, value) {

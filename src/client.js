@@ -2,6 +2,7 @@ const path = require("path");
 const { Impit } = require("impit");
 const {
   BASE_URL,
+  STATUS_URL,
   REQUEST_TIMEOUT_MS,
   BROWSER_HEADERS,
   TOKEN_REFRESH_MARGIN_SECONDS,
@@ -28,7 +29,7 @@ const { LeaderboardResource } = require("./resources/leaderboard");
  */
 
 /**
- * Serialize query params the way the web app does (arrays repeat as `key[]=value`).
+ * Serialize query params the way the web app does (arrays repeat the key: `key=a&key=b`).
  * @param {Object|undefined} params
  * @returns {string}
  */
@@ -41,7 +42,7 @@ function buildQueryString(params) {
     }
 
     if (Array.isArray(value)) {
-      value.forEach((item) => search.append(`${key}[]`, item));
+      value.forEach((item) => search.append(key, item));
     } else {
       search.append(key, value);
     }
@@ -184,11 +185,16 @@ class FomoClient {
 
   /**
    * Perform a raw API request. Resource methods are built on this; use it for endpoints the wrapper doesn't cover.
-   * @param {string} path e.g. "/v2/users/current/followingIds"
-   * @param {{ method?: string, params?: Object, body?: unknown, headers?: Object }} [options]
+   * @param {string} path e.g. "/v2/users/current/followingIds", or an absolute URL
+   * @param {{ method?: string, params?: Object, body?: unknown, headers?: Object, auth?: boolean }} [options]
+   *   `auth: false` skips token handling and sends no authorization header.
    * @returns {Promise<any>} parsed JSON body
    */
   async request(path, options = {}) {
+    if (options.auth === false) {
+      return this._send(path, options);
+    }
+
     await this.ensureToken();
 
     try {
@@ -203,9 +209,14 @@ class FomoClient {
     }
   }
 
-  /** Check that the API is reachable. */
+  /** Fomo's service status banner (severity and message). Needs no auth. */
   status() {
-    return this.request("/prod");
+    return this.request(STATUS_URL, { auth: false });
+  }
+
+  /** App configuration for the signed-in user. */
+  config() {
+    return this.request("/config");
   }
 
   /**
@@ -220,14 +231,15 @@ class FomoClient {
     return this.request("/", { method: "POST", body: payload });
   }
 
-  async _send(path, { method = "GET", params, body, headers = {} }) {
+  async _send(path, { method = "GET", params, body, headers = {}, auth = true }) {
     const requestHeaders = { ...BROWSER_HEADERS, ...headers };
 
-    if (this.accessToken) {
+    if (auth && this.accessToken) {
       requestHeaders.authorization = `Bearer ${this.accessToken}`;
     }
 
-    const url = `${this.baseUrl}${path}${buildQueryString(params)}`;
+    const base = /^https?:\/\//.test(path) ? path : `${this.baseUrl}${path}`;
+    const url = `${base}${buildQueryString(params)}`;
     let response;
 
     try {

@@ -4,7 +4,7 @@ const { parseArgs } = require("./args");
 const { COMMANDS, findCommand } = require("./commands");
 
 // Commands that work without credentials.
-const NO_AUTH_COMMANDS = new Set(["status"]);
+const NO_AUTH_COMMANDS = new Set(["status", "ping"]);
 
 function usage(name, command) {
   const args = (command.args || []).map((arg) => `<${arg}>`).join(" ");

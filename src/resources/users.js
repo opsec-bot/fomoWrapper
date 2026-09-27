@@ -104,6 +104,57 @@ class UsersResource {
     return this.client.request("/v2/userTokens/aggregatedSnapshotById", { params: { userId, snapshotId } });
   }
 
+  /**
+   * Token holdings snapshot for a user at a point in time.
+   * @param {{ userId: string, timestamp?: string|Date }} options ISO timestamp, defaults to now
+   */
+  tokensSnapshotAt({ userId, timestamp = new Date() } = {}) {
+    requireArgs({ userId });
+    const at = timestamp instanceof Date ? timestamp.toISOString() : timestamp;
+    return this.client.request("/v2/userTokens/aggregatedSnapshot", { params: { userId, timestamp: at } });
+  }
+
+  /**
+   * A user's swap history.
+   * @param {string} userId
+   */
+  swaps(userId) {
+    requireArgs({ userId });
+    return this.client.request(`/v2/users/${encodeURIComponent(userId)}/swaps`);
+  }
+
+  /**
+   * A user's profile spotlight.
+   * @param {string} userId
+   */
+  spotlight(userId) {
+    requireArgs({ userId });
+    return this.client.request(`/v2/users/${encodeURIComponent(userId)}/spotlight`);
+  }
+
+  /**
+   * A user's leaderboard entry.
+   * @param {string} userId
+   */
+  leaderboard(userId) {
+    requireArgs({ userId });
+    return this.client.request(`/v2/users/${encodeURIComponent(userId)}/leaderboard`);
+  }
+
+  /**
+   * Transfers between you and another user.
+   * @param {string} userId
+   */
+  transfersWith(userId) {
+    requireArgs({ userId });
+    return this.client.request(`/v2/transfers/with/${encodeURIComponent(userId)}`);
+  }
+
+  /** The authenticated user's watchlist. */
+  watchlist() {
+    return this.client.request("/watchlist");
+  }
+
   /** Ids of the accounts the authenticated user follows. */
   following() {
     return this.client.request("/v2/users/current/followingIds");

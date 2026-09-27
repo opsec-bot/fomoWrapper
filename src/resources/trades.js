@@ -11,11 +11,12 @@ class TradesResource {
 
   /**
    * A user's trades.
-   * @param {{ userId: string, orderBy: string }} options
+   * @param {{ userId: string, orderBy: string, tokenAddress?: string }} options
+   *   `orderBy` is a field name such as "closedAt"; `tokenAddress` narrows to one token.
    */
-  list({ userId, orderBy } = {}) {
+  list({ userId, orderBy, tokenAddress } = {}) {
     requireArgs({ userId, orderBy });
-    return this.client.request("/trades", { params: { userId, orderBy } });
+    return this.client.request("/trades", { params: { userId, orderBy, tokenAddress } });
   }
 
   /**
