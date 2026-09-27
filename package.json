@@ -1,21 +1,35 @@
 {
   "name": "fomowrapper",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "app": "node app.js",
-    "app:help": "node app.js help",
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "version": "0.2.0",
+  "description": "Node.js client and CLI for the Fomo (fomo.family) API",
+  "main": "src/index.js",
+  "bin": {
+    "fomo": "bin/fomo.js"
   },
-  "keywords": [],
+  "files": [
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "fomo": "node bin/fomo.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "fomo",
+    "fomo.family",
+    "crypto",
+    "api",
+    "wrapper",
+    "cli"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "axios": "^1.13.6",
     "dotenv": "^17.3.1",
-    "fs-extra": "^11.3.4",
-    "jsonwebtoken": "^9.0.3"
+    "impit": "^0.14.3"
   }
 }

@@ -1,233 +1,279 @@
-const axios = require("axios");
-const { BASE_URL, REQUEST_TIMEOUT_MS } = require("./constants");
-const { getTrendingTokens } = require("./endpoints/trending");
-const { getTrendingFriends } = require("./endpoints/trendingFriends");
-const { getTokenDetails } = require("./endpoints/tokenDetails");
-const { getTokenBars } = require("./endpoints/bars");
-const { getTokenPrices } = require("./endpoints/tokenPrices");
-const { getFilterTokens } = require("./endpoints/filterTokens");
-const { getFilterTokensSearch } = require("./endpoints/filterTokensSearch");
-const { getTokenWarnings } = require("./endpoints/tokenWarnings");
-const { getVerifiedTokens } = require("./endpoints/verifiedTokens");
-const { getFeed, getFriendsFeed } = require("./endpoints/feed");
-const { getTrades, getTradeComments, getTradesTopCombined } = require("./endpoints/trades");
+const path = require("path");
+const { Impit } = require("impit");
 const {
-  getUser,
-  getUserActiveTrade,
-  getUserActivity,
-  getUserBalances,
-  getUsersFollowing,
-  getUsersFuzzySearch,
-  getUserReferralDetails,
-  getUserTokensAggregatedSnapshotById,
-} = require("./endpoints/users");
-const { getLeaderboard24h } = require("./endpoints/leaderboard");
-const { getStatus } = require("./endpoints/status");
-const { sendTransaction } = require("./endpoints/transactions");
+  BASE_URL,
+  REQUEST_TIMEOUT_MS,
+  BROWSER_HEADERS,
+  TOKEN_REFRESH_MARGIN_SECONDS,
+  DEFAULT_TOKEN_FILE,
+} = require("./constants");
+const auth = require("./auth");
+const { FomoApiError, FomoAuthError, FomoError } = require("./errors");
+const { TokensResource } = require("./resources/tokens");
+const { FeedResource } = require("./resources/feed");
+const { TradesResource } = require("./resources/trades");
+const { UsersResource } = require("./resources/users");
+const { LeaderboardResource } = require("./resources/leaderboard");
 
 /**
- * Normalize token input from raw JWT, Bearer value, or Authorization header string
- * @param {string|undefined|null} value
- * @returns {string|undefined}
+ * @typedef {Object} FomoClientOptions
+ * @property {string} [accessToken] Privy access token. Raw JWT, `Bearer <jwt>`, or a full Authorization header.
+ * @property {string} [refreshToken] Privy refresh token. Enables automatic refresh when the access token expires.
+ * @property {string} [tokenFile] JSON file holding `{ access_token, refresh_token }`. Read on first request,
+ *   rewritten after every refresh so the rotated refresh token is never lost.
+ * @property {(tokens: import("./auth").TokenPair) => void} [onTokenRefresh] Called after every successful refresh.
+ * @property {string} [baseUrl]
+ * @property {number} [timeoutMs]
+ * @property {{ fetch: Function }} [http] Custom transport with a fetch-compatible `fetch(url, init)`. Defaults to impit.
  */
-function normalizeAccessToken(value) {
-  if (typeof value !== "string") {
-    return undefined;
+
+/**
+ * Serialize query params the way the web app does (arrays repeat as `key[]=value`).
+ * @param {Object|undefined} params
+ * @returns {string}
+ */
+function buildQueryString(params) {
+  const search = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params || {})) {
+    if (value === null || value === undefined) {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => search.append(`${key}[]`, item));
+    } else {
+      search.append(key, value);
+    }
   }
 
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return undefined;
-  }
-
-  const withoutHeader = trimmed.replace(/^authorization\s*:\s*/i, "");
-  const withoutBearer = withoutHeader.replace(/^bearer\s+/i, "");
-
-  return withoutBearer.trim();
+  const query = search.toString();
+  return query ? `?${query}` : "";
 }
 
 class FomoClient {
   /**
-   * Create a Fomo API client
-   * @param {{ token?: string, baseUrl?: string, timeoutMs?: number }} options
+   * @param {FomoClientOptions} [options]
    */
-  constructor({ token, baseUrl = BASE_URL, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
-    this.token = normalizeAccessToken(token);
-    this.baseUrl = baseUrl;
+  constructor(options = {}) {
+    const {
+      accessToken = options.token,
+      refreshToken,
+      tokenFile,
+      onTokenRefresh,
+      baseUrl = BASE_URL,
+      timeoutMs = REQUEST_TIMEOUT_MS,
+      http,
+    } = options;
+
+    this.accessToken = auth.normalizeAccessToken(accessToken);
+    this.refreshToken = refreshToken || undefined;
+    this.tokenFile = tokenFile ? path.resolve(tokenFile) : undefined;
+    this.onTokenRefresh = onTokenRefresh;
+    this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.timeoutMs = timeoutMs;
+    this.http = http || new Impit({ browser: "chrome", timeout: timeoutMs });
+
+    this._tokenFileLoaded = !this.tokenFile;
+    this._refreshing = null;
+
+    this.tokens = new TokensResource(this);
+    this.feed = new FeedResource(this);
+    this.trades = new TradesResource(this);
+    this.users = new UsersResource(this);
+    this.leaderboard = new LeaderboardResource(this);
   }
 
   /**
-   * Set bearer token for authenticated requests
+   * Build a client from environment variables:
+   * `FOMO_ACCESS_TOKEN`, `FOMO_REFRESH_TOKEN`, `FOMO_TOKEN_FILE`, `FOMO_BASE_URL`.
+   * @param {NodeJS.ProcessEnv} [env=process.env]
+   * @param {FomoClientOptions} [overrides]
+   * @returns {FomoClient}
+   */
+  static fromEnv(env = process.env, overrides = {}) {
+    // FOMO_USE_TOKEN_FILE=true is the pre-0.2 way of opting into the default token file.
+    const tokenFile = env.FOMO_TOKEN_FILE || (env.FOMO_USE_TOKEN_FILE === "true" ? DEFAULT_TOKEN_FILE : undefined);
+
+    return new FomoClient({
+      accessToken: env.FOMO_ACCESS_TOKEN,
+      refreshToken: env.FOMO_REFRESH_TOKEN,
+      tokenFile,
+      baseUrl: env.FOMO_BASE_URL || undefined,
+      ...overrides,
+    });
+  }
+
+  /**
+   * Replace the access token used for requests.
    * @param {string} token
    */
   setToken(token) {
-    this.token = normalizeAccessToken(token);
+    this.accessToken = auth.normalizeAccessToken(token);
   }
 
   /**
-   * Perform an API request
-   * @param {string} path
-   * @param {{ method?: string, params?: Object, body?: Object, headers?: Object }} options
-   * @returns {Promise<Object>}
+   * Current token state, without making a request.
+   * @returns {{ authenticated: boolean, canRefresh: boolean, expiresAt: number|null,
+   *   expiresInSeconds: number|null, expired: boolean|null }}
+   */
+  getAuthInfo() {
+    const expiresAt = this.accessToken ? auth.getExpiration(this.accessToken) : null;
+    const expiresInSeconds = expiresAt === null ? null : expiresAt - Math.floor(Date.now() / 1000);
+
+    return {
+      authenticated: Boolean(this.accessToken),
+      canRefresh: Boolean(this.refreshToken),
+      expiresAt,
+      expiresInSeconds,
+      expired: expiresInSeconds === null ? null : expiresInSeconds <= 0,
+    };
+  }
+
+  /**
+   * Make sure the client holds a usable access token, loading the token file and refreshing as needed.
+   * Called automatically before every request.
+   * @returns {Promise<string|undefined>} the access token, or undefined when running unauthenticated
+   */
+  async ensureToken() {
+    if (!this._tokenFileLoaded) {
+      await this._loadTokenFile();
+    }
+
+    if (this.refreshToken && (!this.accessToken || auth.isExpired(this.accessToken, TOKEN_REFRESH_MARGIN_SECONDS))) {
+      await this.refresh();
+    }
+
+    if (this.accessToken && auth.isExpired(this.accessToken)) {
+      throw new FomoAuthError(
+        "Access token is expired and no refresh token is configured. Set a new FOMO_ACCESS_TOKEN or add FOMO_REFRESH_TOKEN."
+      );
+    }
+
+    return this.accessToken;
+  }
+
+  /**
+   * Force a token refresh. Concurrent callers share one refresh request.
+   * @returns {Promise<import("./auth").TokenPair>}
+   */
+  refresh() {
+    if (!this.refreshToken) {
+      return Promise.reject(new FomoAuthError("No refresh token configured"));
+    }
+
+    this._refreshing ||= (async () => {
+      try {
+        const tokens = await auth.refreshTokens(this.refreshToken);
+        this.accessToken = tokens.access_token;
+        this.refreshToken = tokens.refresh_token;
+
+        if (this.tokenFile) {
+          await auth.saveTokens(tokens, this.tokenFile);
+        }
+
+        this.onTokenRefresh?.(tokens);
+        return tokens;
+      } finally {
+        this._refreshing = null;
+      }
+    })();
+
+    return this._refreshing;
+  }
+
+  /**
+   * Perform a raw API request. Resource methods are built on this; use it for endpoints the wrapper doesn't cover.
+   * @param {string} path e.g. "/v2/users/current/followingIds"
+   * @param {{ method?: string, params?: Object, body?: unknown, headers?: Object }} [options]
+   * @returns {Promise<any>} parsed JSON body
    */
   async request(path, options = {}) {
-    const { method = "GET", params, body, headers = {} } = options;
-    const requestHeaders = { ...headers };
-
-    if (this.token) {
-      requestHeaders.Authorization = `Bearer ${this.token}`;
-    }
+    await this.ensureToken();
 
     try {
-      const response = await axios({
-        method,
-        url: `${this.baseUrl}${path}`,
-        params,
-        data: body,
-        headers: requestHeaders,
-        timeout: this.timeoutMs,
-      });
-
-      if (typeof response.data === "undefined") {
-        throw new Error("Empty API response");
-      }
-
-      return response.data;
+      return await this._send(path, options);
     } catch (error) {
-      const status = error.response?.status;
-      const apiError = error.response?.data?.error || error.response?.data?.message;
-      const message = apiError || error.message || "Request failed";
-      throw new Error(`API error ${status || "unknown"}: ${message}`);
+      // A token can be revoked before its exp; retry once with a fresh one.
+      if (error instanceof FomoApiError && error.status === 401 && this.refreshToken) {
+        await this.refresh();
+        return this._send(path, options);
+      }
+      throw error;
     }
   }
 
-  /**
-   * Fetch trending tokens
-   * @returns {Promise<Object>}
-   */
-  async trending() {
-    return getTrendingTokens(this);
+  /** Check that the API is reachable. */
+  status() {
+    return this.request("/prod");
   }
 
   /**
-   * Fetch token details
-   * @param {string} tokenId
-   * @returns {Promise<Object>}
+   * POST a signed transaction payload to the API root, as the Fomo app does when trading.
+   * This can move funds. Only send payloads you built and understand.
+   * @param {Object} payload
    */
-  async tokenDetails(tokenId) {
-    return getTokenDetails(this, tokenId);
+  sendTransaction(payload) {
+    if (!payload || typeof payload !== "object") {
+      throw new TypeError("payload must be an object");
+    }
+    return this.request("/", { method: "POST", body: payload });
   }
 
-  /**
-   * Fetch token bars
-   * @param {{ from: number, to: number, resolution: string, symbol: string }} options
-   * @returns {Promise<Object>}
-   */
-  async bars(options) {
-    return getTokenBars(this, options);
+  async _send(path, { method = "GET", params, body, headers = {} }) {
+    const requestHeaders = { ...BROWSER_HEADERS, ...headers };
+
+    if (this.accessToken) {
+      requestHeaders.authorization = `Bearer ${this.accessToken}`;
+    }
+
+    const url = `${this.baseUrl}${path}${buildQueryString(params)}`;
+    let response;
+
+    try {
+      response = await this.http.fetch(url, {
+        method,
+        headers: requestHeaders,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch (error) {
+      throw new FomoError(`${method} ${path} failed: ${error.message || "network error"}`, { cause: error });
+    }
+
+    const text = await response.text();
+    let data;
+
+    try {
+      data = text ? JSON.parse(text) : undefined;
+    } catch {
+      data = text;
+    }
+
+    if (!response.ok) {
+      throw new FomoApiError({ status: response.status, method, path, body: data });
+    }
+
+    return data;
   }
 
-  /**
-   * Fetch public feed
-   * @param {{ limit?: number, feedTypes?: string[] }} options
-   * @returns {Promise<Object>}
-   */
-  async feed(options = {}) {
-    return getFeed(this, options);
-  }
+  async _loadTokenFile() {
+    this._tokenFileLoaded = true;
 
-  /**
-   * Fetch friends feed
-   * @param {{ limit?: number, feedTypes?: string[] }} options
-   * @returns {Promise<Object>}
-   */
-  async feedFriends(options = {}) {
-    return getFriendsFeed(this, options);
-  }
+    let tokens;
+    try {
+      tokens = await auth.loadTokens(this.tokenFile);
+    } catch (error) {
+      // A missing file is fine when other credentials seed it; it's written on the first refresh.
+      if (error.cause?.code === "ENOENT" && (this.accessToken || this.refreshToken)) {
+        return;
+      }
+      throw error;
+    }
 
-  async trendingFriends() {
-    return getTrendingFriends(this);
-  }
-
-  async tokenPrices(items) {
-    return getTokenPrices(this, items);
-  }
-
-  async filterTokens(tokenIds) {
-    return getFilterTokens(this, tokenIds);
-  }
-
-  async filterTokensSearch(phrase) {
-    return getFilterTokensSearch(this, phrase);
-  }
-
-  async tokenWarnings(options) {
-    return getTokenWarnings(this, options);
-  }
-
-  async verifiedTokens() {
-    return getVerifiedTokens(this);
-  }
-
-  async trades(options) {
-    return getTrades(this, options);
-  }
-
-  async tradeComments(tradeId) {
-    return getTradeComments(this, tradeId);
-  }
-
-  async tradesTopCombined(options = {}) {
-    return getTradesTopCombined(this, options);
-  }
-
-  async user(userId) {
-    return getUser(this, userId);
-  }
-
-  async userActiveTrade(options) {
-    return getUserActiveTrade(this, options);
-  }
-
-  async userActivity(options) {
-    return getUserActivity(this, options);
-  }
-
-  async userBalances(userId) {
-    return getUserBalances(this, userId);
-  }
-
-  async usersFollowing() {
-    return getUsersFollowing(this);
-  }
-
-  async usersFuzzySearch(searchTerm) {
-    return getUsersFuzzySearch(this, searchTerm);
-  }
-
-  async usersReferralDetails(userId) {
-    return getUserReferralDetails(this, userId);
-  }
-
-  async userTokensAggregatedSnapshotById(options) {
-    return getUserTokensAggregatedSnapshotById(this, options);
-  }
-
-  async leaderboard24h(limit = 100) {
-    return getLeaderboard24h(this, limit);
-  }
-
-  async status() {
-    return getStatus(this);
-  }
-
-  async sendTransaction(payload) {
-    return sendTransaction(this, payload);
+    // The file holds the newest pair (refresh tokens rotate), so it wins over constructor/env values.
+    this.accessToken = auth.normalizeAccessToken(tokens.access_token) || this.accessToken;
+    this.refreshToken = tokens.refresh_token || this.refreshToken;
   }
 }
 
-module.exports = {
-  FomoClient,
-};
+module.exports = { FomoClient, buildQueryString };
