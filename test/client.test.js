@@ -74,7 +74,7 @@ test("expired token is refreshed once, persisted, and reported", async (t) => {
     refreshCalls += 1;
     assert.deepEqual(JSON.parse(init.body), { refresh_token: "old-refresh" });
     assert.match(init.headers.Authorization, /^Bearer ey/);
-    return new Response(JSON.stringify({ privy_access_token: fresh, refresh_token: "new-refresh" }));
+    return new Response(JSON.stringify({ token: fresh, privy_access_token: "privy-internal", refresh_token: "new-refresh", session_update_action: "set" }));
   });
 
   const refreshed = [];
@@ -148,7 +148,7 @@ test("401 permission errors do not trigger a refresh", async (t) => {
 test("401 token errors refresh once and retry", async (t) => {
   const fresh = makeJwt({ exp: now() + 3600 });
   t.mock.method(globalThis, "fetch", async () =>
-    new Response(JSON.stringify({ privy_access_token: fresh, refresh_token: "r2" }))
+    new Response(JSON.stringify({ token: fresh, privy_access_token: "privy-internal", refresh_token: "r2", session_update_action: "set" }))
   );
   const { client, calls } = mockClient(
     [{ status: 401, body: { message: "Unexpected error in JWT authentication middleware" } }, { body: { ok: 1 } }],
@@ -157,4 +157,26 @@ test("401 token errors refresh once and retry", async (t) => {
 
   assert.deepEqual(await client.users.watchlist(), { ok: 1 });
   assert.equal(calls[1].headers.authorization, `Bearer ${fresh}`);
+});
+
+test("refresh keeps the current access token when Privy answers ignore", async (t) => {
+  const current = makeJwt({ exp: now() + 3600 });
+  t.mock.method(globalThis, "fetch", async () =>
+    new Response(
+      JSON.stringify({ token: null, privy_access_token: "privy-internal", refresh_token: "r", session_update_action: "ignore" })
+    )
+  );
+  const { client } = mockClient([], { accessToken: current, refreshToken: "r" });
+
+  assert.deepEqual(await client.refresh(), { access_token: current, refresh_token: "r" });
+  assert.equal(client.accessToken, current);
+});
+
+test("refresh fails when Privy clears the session", async (t) => {
+  t.mock.method(globalThis, "fetch", async () =>
+    new Response(JSON.stringify({ token: null, refresh_token: null, session_update_action: "clear" }))
+  );
+  const { client } = mockClient([], { accessToken: makeJwt({ exp: now() - 10 }), refreshToken: "r" });
+
+  await assert.rejects(client.refresh(), FomoAuthError);
 });

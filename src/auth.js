@@ -100,7 +100,17 @@ async function refreshTokens(refreshToken, accessToken) {
     throw new FomoAuthError(`Token refresh failed with ${response.status}: ${data?.error || "unknown error"}${hint}`);
   }
 
-  const newAccessToken = data?.privy_access_token || data?.token;
+  // `token` is the app access token Fomo's API accepts (aud = Privy app id). `privy_access_token`
+  // is Privy's own token (aud = auth.privy.io); Fomo rejects it, so never fall back to it.
+  // Privy answers "ignore" with `token: null` when the access token sent is still valid.
+  const action = data?.session_update_action;
+
+  if (action === "clear") {
+    throw new FomoAuthError("Privy ended the session; sign in again and set new tokens");
+  }
+
+  const newAccessToken =
+    typeof data?.token === "string" ? data.token : action === "ignore" ? normalizeAccessToken(accessToken) : undefined;
 
   if (!newAccessToken || !data?.refresh_token) {
     throw new FomoAuthError("Token refresh response did not include a new token pair");
