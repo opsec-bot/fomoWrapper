@@ -62,7 +62,7 @@ On Windows `cmd.exe`, write the JSON with escaped double quotes: `"{\"limit\":20
 | `tradeComments` | `<tradeId>` | `trades.comments()` |
 | `tradesTopCombined` | `[limit] [window]` | `trades.topCombined()` |
 | **Users** | | |
-| `addresses` | `<userHandle>` | `users.addresses()` |
+| `addresses` | `<userHandle \| profileUrl \| solanaAddress>` | `users.addresses()` |
 | `userByHandle` | `<userHandle>` | `users.byHandle()` |
 | `user` | `<userId>` | `users.get()` |
 | `searchUsers` | `<searchTerm>` | `users.search()` |

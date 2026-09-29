@@ -187,7 +187,7 @@ const COMMANDS = {
   // Users
   addresses: {
     group: "Users",
-    summary: "Resolve a handle to its Robinhood (EVM) and Solana addresses.",
+    summary: "Resolve a handle, profile URL, or Solana address to verified Solana and EVM wallets.",
     args: ["userHandle"],
     example: "@somehandle",
     run: (client, { userHandle }) => client.users.addresses(String(userHandle)),

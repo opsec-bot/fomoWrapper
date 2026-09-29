@@ -77,7 +77,7 @@ The web app now loads its charts from a separate service (`mobula-api.fomo.famil
 | `users.me()` | `GET /v2/users/current` |
 | `users.get(userId)` | `GET /v2/users/{userId}` |
 | `users.byHandle(handle)` | `GET /v2/users/userHandle/{handle}` |
-| `users.addresses(handle)` | same as `byHandle`, reshaped |
+| `users.addresses(handleOrWallet, { solanaRpcUrl? })` | see below |
 | `users.search(searchTerm)` | `GET /v2/users/fuzzy-search` |
 | `users.balances(userId)` | `GET /v2/users/{userId}/balances` |
 | `users.activity({ userId, includeUsdcHistory? })` | `GET /v2/users/{userId}/activity` |
@@ -98,7 +98,7 @@ Handles are matched exactly, and a leading `@` is stripped. An unknown handle th
 
 User endpoints wrap their result in `{ success, message, responseObject, statusCode }`. The profile is in `responseObject`.
 
-**`addresses`** resolves a handle to its wallets:
+**`addresses`** resolves a handle, `@handle`, `fomo.family` profile URL, or Solana address to its wallets:
 
 ```js
 await fomo.users.addresses("@somehandle");
@@ -106,10 +106,23 @@ await fomo.users.addresses("@somehandle");
 //   userHandle: "somehandle",
 //   displayName: "Some Handle",
 //   userId: "ab1aba9c-...",
-//   robinhoodAddress: "0x9b07...",   // profile.evmAddress
-//   solanaAddress: "2mE4xG..."       // profile.address
+//   solanaAddress: "3cmts6...",
+//   evmAddress: "0x22CDAC...",        // EIP-55 checksummed, or null
+//   evmUnavailableReason: null,       // why evmAddress is null
+//   robinhoodAddress: "0x22CDAC..."   // deprecated alias of evmAddress
 // }
 ```
+
+It does not read the profile's `address` / `evmAddress` fields, which don't reliably match the wallets a user actually receives at and trades from. It follows the method of [fomo-wallet-resolver](https://github.com/YvesxDev/fomo-wallet-resolver):
+
+- **Solana:** asks Fomo to prepare a 2 USDC transfer to the user (`POST /transfers/v2/send`), decodes the unsigned transaction, and takes the recipient's wallet from the associated-token-account instruction. When the recipient already has a USDC account, it reads that account's owner from Solana RPC (`SOLANA_RPC_URL`, default mainnet-beta). Nothing is signed or sent. Fomo only prepares transfers the signed-in account could afford, so **that account needs at least 2 USDC on Solana**, or the call throws.
+- **EVM:** ties the user's completed Solana-to-EVM Relay swaps (`GET /v2/users/{userId}/swaps`) to Relay's public request history for the Solana wallet, matching chains and tokens, time within 2 minutes, and amount within 1% (Fomo's clock and fee make both differ slightly). The newest matched swap decides. `evmAddress` is `null` when there's no match, or when a swap matches two recipients, and `evmUnavailableReason` says why. The swap records' own `address` / `recipient` fields aren't used: live, they didn't name wallets with any on-chain activity.
+
+Given a Solana address, it skips Fomo entirely and resolves the EVM wallet from Relay history alone. That needs no token and no balance, but it is strict: any Fomo bridge from that wallet to a second address (a send to a friend, say) makes it return `null`.
+
+Users who have only bridged *into* Solana have no Solana-to-EVM swap to check, so they get `evmAddress: null`.
+
+Relay's `/requests/v2` is deprecated, rate-limited, and shuts down on 2026-11-24. Its successor, `/requests/v3`, needs a Relay API key. Each lookup reads that history once, usually a single request.
 
 ## feed
 

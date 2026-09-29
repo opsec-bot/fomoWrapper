@@ -44,20 +44,6 @@ test("missing required arguments throw before any request", async () => {
   assert.equal(calls.length, 0);
 });
 
-test("users.addresses maps evmAddress/address to robinhood/solana", async () => {
-  const { client } = mockClient([
-    { body: { responseObject: { id: "u1", userHandle: "alice", displayName: "Alice", evmAddress: "0xE", address: "So1" } } },
-  ]);
-
-  assert.deepEqual(await client.users.addresses("@alice"), {
-    userHandle: "alice",
-    displayName: "Alice",
-    userId: "u1",
-    robinhoodAddress: "0xE",
-    solanaAddress: "So1",
-  });
-});
-
 test("expired token without a refresh token fails with FomoAuthError", async () => {
   const { client, calls } = mockClient([], { accessToken: makeJwt({ exp: now() - 10 }) });
 

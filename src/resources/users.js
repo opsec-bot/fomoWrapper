@@ -1,4 +1,5 @@
 const { requireArgs } = require("./validate");
+const { resolveWallets } = require("../wallets");
 
 /**
  * User profiles, balances, activity, and search.
@@ -34,21 +35,20 @@ class UsersResource {
   }
 
   /**
-   * Resolve a handle to its wallet addresses.
-   * @param {string} userHandle
-   * @returns {Promise<{ userHandle: string, displayName: string, userId: string,
-   *   robinhoodAddress: string|null, solanaAddress: string|null }>}
+   * Resolve a handle, `@handle`, profile URL, or Solana address to verified wallet addresses.
+   *
+   * Profile fields are not used: the Solana wallet is read from a transfer Fomo prepares for the user
+   * (decoded only, never signed or sent), and the EVM wallet from matching Relay swap history.
+   * `evmAddress` is null, with `evmUnavailableReason`, when that history doesn't prove one wallet.
+   * @param {string} input
+   * @param {{ solanaRpcUrl?: string }} [options]
+   * @returns {Promise<import("../wallets").WalletResolution & { robinhoodAddress: string|null }>}
    */
-  async addresses(userHandle) {
-    const user = unwrapUser(await this.byHandle(userHandle));
-
-    return {
-      userHandle: user.userHandle,
-      displayName: user.displayName,
-      userId: user.id,
-      robinhoodAddress: user.evmAddress || null,
-      solanaAddress: user.address || null,
-    };
+  async addresses(input, options) {
+    requireArgs({ input: typeof input === "string" ? input.trim() : input });
+    const wallets = await resolveWallets(this.client, input, options);
+    // `robinhoodAddress` is the pre-0.4 name for `evmAddress`.
+    return { ...wallets, robinhoodAddress: wallets.evmAddress };
   }
 
   /**

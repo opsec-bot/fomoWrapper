@@ -25,6 +25,7 @@ const { LeaderboardResource } = require("./resources/leaderboard");
  * @property {(tokens: import("./auth").TokenPair) => void} [onTokenRefresh] Called after every successful refresh.
  * @property {string} [baseUrl]
  * @property {number} [timeoutMs]
+ * @property {string} [solanaRpcUrl] Solana RPC used by `users.addresses()`. Defaults to mainnet-beta.
  * @property {{ fetch: Function }} [http] Custom transport with a fetch-compatible `fetch(url, init)`. Defaults to impit.
  */
 
@@ -77,6 +78,7 @@ class FomoClient {
       onTokenRefresh,
       baseUrl = BASE_URL,
       timeoutMs = REQUEST_TIMEOUT_MS,
+      solanaRpcUrl,
       http,
     } = options;
 
@@ -86,6 +88,7 @@ class FomoClient {
     this.onTokenRefresh = onTokenRefresh;
     this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.timeoutMs = timeoutMs;
+    this.solanaRpcUrl = solanaRpcUrl || undefined;
     this.http = http || new Impit({ browser: "chrome", timeout: timeoutMs });
 
     this._tokenFileLoaded = !this.tokenFile;
@@ -100,7 +103,7 @@ class FomoClient {
 
   /**
    * Build a client from environment variables:
-   * `FOMO_ACCESS_TOKEN`, `FOMO_REFRESH_TOKEN`, `FOMO_TOKEN_FILE`, `FOMO_BASE_URL`.
+   * `FOMO_ACCESS_TOKEN`, `FOMO_REFRESH_TOKEN`, `FOMO_TOKEN_FILE`, `FOMO_BASE_URL`, `SOLANA_RPC_URL`.
    * @param {NodeJS.ProcessEnv} [env=process.env]
    * @param {FomoClientOptions} [overrides]
    * @returns {FomoClient}
@@ -114,6 +117,7 @@ class FomoClient {
       refreshToken: env.FOMO_REFRESH_TOKEN,
       tokenFile,
       baseUrl: env.FOMO_BASE_URL || undefined,
+      solanaRpcUrl: env.SOLANA_RPC_URL || undefined,
       ...overrides,
     });
   }

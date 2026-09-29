@@ -29,6 +29,8 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
     "dotenv": "^17.3.1",
     "impit": "^0.14.3"
   }

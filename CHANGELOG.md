@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- `users.addresses()` / `fomo addresses` no longer trust the profile's `address` and `evmAddress` fields, which often didn't match a user's real wallets. The Solana wallet now comes from decoding a transfer Fomo prepares for the user, and the EVM wallet from the user's Fomo swaps matched to Relay history (method adapted from [fomo-wallet-resolver](https://github.com/YvesxDev/fomo-wallet-resolver) for Fomo's current swap records and Relay's v2 rate limits). The signed-in account needs at least 2 USDC on Solana for handle lookups; nothing is sent.
+- The result adds `evmAddress` and `evmUnavailableReason`. `robinhoodAddress` is kept as a deprecated alias of `evmAddress`, and is now `null` when no EVM wallet can be verified.
+
+### Added
+
+- `addresses` also accepts a `fomo.family` profile URL or a Solana address. A Solana address resolves its EVM wallet from Relay history, with no token needed.
+- `solanaRpcUrl` client option / `SOLANA_RPC_URL` env var.
+- Dependencies: `@noble/hashes` (keccak for EIP-55 checksums) and `@noble/curves` (ed25519 check for associated-token-account derivation).
+
 ## 0.3.0
 
 Synced with what fomo.family sent on 2026-09-27.
