@@ -173,6 +173,20 @@ async function resolveWallets(client, input, { solanaRpcUrl } = {}) {
   return formatResult(user, wallet, resolution);
 }
 
+/**
+ * Only the Solana wallet of a known Fomo user id: one Fomo call (the prepared transfer), plus an RPC read
+ * when the recipient already has a USDC account. Cheaper than resolveWallets when the id is already known
+ * and the EVM wallet isn't needed.
+ * @param {import("../client").FomoClient} client
+ * @param {string} userId
+ * @param {{ solanaRpcUrl?: string }} [options]
+ * @returns {Promise<string>}
+ */
+async function resolveSolanaWalletForUser(client, userId, { solanaRpcUrl } = {}) {
+  const rpc = new solana.SolanaRpc(solanaRpcUrl || client.solanaRpcUrl || DEFAULT_SOLANA_RPC_URL);
+  return resolveSolanaWallet(client, userId, rpc);
+}
+
 function formatResult(user, solanaAddress, resolution) {
   return {
     userHandle: user?.userHandle ?? null,
@@ -187,6 +201,7 @@ function formatResult(user, solanaAddress, resolution) {
 module.exports = {
   DEFAULT_SOLANA_RPC_URL,
   resolveWallets,
+  resolveSolanaWalletForUser,
   parseHandle,
   recipientAmountHint,
 };

@@ -272,6 +272,33 @@ test("addresses resolves a new recipient from the ATA it creates, ignoring profi
   assert.deepEqual(publicUrls, []);
 });
 
+test("solanaWallet resolves a known user id with a single Fomo call", async (t) => {
+  const owner = randomKey();
+  const ata = solana.associatedTokenAddress(owner, USDC);
+  const payer = randomKey();
+  const transaction = serialize({
+    staticKeys: [payer],
+    instructions: [
+      {
+        program: solana.ASSOCIATED_TOKEN_PROGRAM,
+        accounts: [payer, ata, owner, USDC, "11111111111111111111111111111111", solana.TOKEN_PROGRAM],
+        data: [1],
+      },
+      transferChecked(randomKey(), ata, 1_759_481),
+      transferChecked(randomKey(), randomKey(), 240_519),
+    ],
+  });
+  const { client, calls } = routedClient({
+    "/transfers/v2/send": {
+      responseObject: { transferTransaction: transaction, transferFeeTokenAddress: USDC, transferFeeUsd: 0.240519 },
+    },
+  });
+  mockPublicFetch(t, {});
+
+  assert.equal(await client.users.solanaWallet("u1"), owner);
+  assert.deepEqual(calls.map((call) => call.path), ["/transfers/v2/send"]);
+});
+
 test("addresses reads an existing token account through a lookup table, then verifies the EVM wallet", async (t) => {
   const tokenAccount = randomKey();
   const lookupTable = randomKey();
