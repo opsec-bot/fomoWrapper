@@ -1,5 +1,5 @@
 const { requireArgs } = require("./validate");
-const { resolveWallets } = require("../wallets");
+const { resolveWallets, resolveSolanaWalletForUser } = require("../wallets");
 
 /**
  * User profiles, balances, activity, and search.
@@ -49,6 +49,19 @@ class UsersResource {
     const wallets = await resolveWallets(this.client, input, options);
     // `robinhoodAddress` is the pre-0.4 name for `evmAddress`.
     return { ...wallets, robinhoodAddress: wallets.evmAddress };
+  }
+
+  /**
+   * The Solana wallet of a user whose id you already have. One Fomo call instead of the three
+   * `addresses()` makes (profile, swaps, transfer). Same method: read from a prepared, unsigned transfer.
+   * Needs 2 USDC (Solana) in the signed-in account, like `addresses()`.
+   * @param {string} userId
+   * @param {{ solanaRpcUrl?: string }} [options]
+   * @returns {Promise<string>}
+   */
+  solanaWallet(userId, options) {
+    requireArgs({ userId });
+    return resolveSolanaWalletForUser(this.client, userId, options);
   }
 
   /**

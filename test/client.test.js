@@ -158,6 +158,19 @@ test("refresh keeps the current access token when Privy answers ignore", async (
   assert.equal(client.accessToken, current);
 });
 
+test("refresh keeps the current refresh token when Privy answers ignore without one", async (t) => {
+  const fresh = makeJwt({ exp: now() + 3600 });
+  t.mock.method(globalThis, "fetch", async () =>
+    new Response(
+      JSON.stringify({ token: fresh, privy_access_token: "privy-internal", refresh_token: null, session_update_action: "ignore" })
+    )
+  );
+  const { client } = mockClient([], { accessToken: makeJwt({ exp: now() - 10 }), refreshToken: "r" });
+
+  assert.deepEqual(await client.refresh(), { access_token: fresh, refresh_token: "r" });
+  assert.equal(client.accessToken, fresh);
+});
+
 test("refresh fails when Privy clears the session", async (t) => {
   t.mock.method(globalThis, "fetch", async () =>
     new Response(JSON.stringify({ token: null, refresh_token: null, session_update_action: "clear" }))

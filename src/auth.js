@@ -111,12 +111,16 @@ async function refreshTokens(refreshToken, accessToken) {
 
   const newAccessToken =
     typeof data?.token === "string" ? data.token : action === "ignore" ? normalizeAccessToken(accessToken) : undefined;
+  // With "ignore", Privy may also send `refresh_token: null`: the refresh token was not rotated and
+  // is still the valid one. Seen live 2026-09-30 (a fresh `token` plus a null refresh token).
+  const newRefreshToken =
+    typeof data?.refresh_token === "string" ? data.refresh_token : action === "ignore" ? refreshToken : undefined;
 
-  if (!newAccessToken || !data?.refresh_token) {
+  if (!newAccessToken || !newRefreshToken) {
     throw new FomoAuthError("Token refresh response did not include a new token pair");
   }
 
-  return { access_token: newAccessToken, refresh_token: data.refresh_token };
+  return { access_token: newAccessToken, refresh_token: newRefreshToken };
 }
 
 /**

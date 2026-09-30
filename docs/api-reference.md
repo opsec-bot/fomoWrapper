@@ -78,6 +78,7 @@ The web app now loads its charts from a separate service (`mobula-api.fomo.famil
 | `users.get(userId)` | `GET /v2/users/{userId}` |
 | `users.byHandle(handle)` | `GET /v2/users/userHandle/{handle}` |
 | `users.addresses(handleOrWallet, { solanaRpcUrl? })` | see below |
+| `users.solanaWallet(userId, { solanaRpcUrl? })` | Solana wallet only, for a known user id: one `POST /transfers/v2/send` (plus an RPC read when needed). Same method and 2 USDC requirement as `addresses`. |
 | `users.search(searchTerm)` | `GET /v2/users/fuzzy-search` |
 | `users.balances(userId)` | `GET /v2/users/{userId}/balances` |
 | `users.activity({ userId, includeUsdcHistory? })` | `GET /v2/users/{userId}/activity` |
