@@ -115,6 +115,7 @@ Output is pretty-printed JSON, so you can pipe it into `jq`.
 | [Authentication](docs/authentication.md) | Where to find your tokens, refresh behaviour, token files |
 | [API reference](docs/api-reference.md) | Every client method, its arguments, and the endpoint it calls |
 | [CLI](docs/cli.md) | Command list, the three ways to pass arguments, scripting tips |
+| [Rate limits and restrictions](docs/rate-limits.md) | Measured limits, what an account restriction looks like, why not to crawl |
 | [Examples](examples/) | Runnable scripts |
 
 ## Project layout
@@ -165,6 +166,8 @@ try {
 ```
 
 Missing required arguments throw a `TypeError` before any request goes out.
+
+A `403` with the message `Forbidden` on a call that normally works usually means fomo restricted the account. Stop sending requests rather than retrying. See [Rate limits and restrictions](docs/rate-limits.md).
 
 ## Development
 
