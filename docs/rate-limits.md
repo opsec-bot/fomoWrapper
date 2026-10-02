@@ -41,4 +41,3 @@ We saw no warning beforehand that we know of.
 - Treat a `403` `Forbidden` on a call that normally works as fatal: stop all requests from that account instead of retrying.
 - Count every call your code makes, across processes, and alert when the rate is higher than you expect.
 - Don't run unattended crawlers. If you need history at scale, use on-chain data instead.
-- Don't make new accounts to get around a restriction. Contact fomo support.
